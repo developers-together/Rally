@@ -12,7 +12,7 @@ class ChatPerm extends Model
     protected $table = 'chat_permissions';
 
     protected $casts = [
-    'write'    => 'boolean',
+    'visibility'    => 'boolean',
     'read'     => 'boolean',
     'delete'   => 'boolean',
     'modify'   => 'boolean',
@@ -20,7 +20,7 @@ class ChatPerm extends Model
     'allow_ai' => 'boolean',
     ];
 
-    protected $fillable = ['chat_id', 'write', 'read', 'delete', 'modify', 'notify', 'allow_ai'];
+    protected $fillable = ['chat_id', 'visibility', 'write', 'delete', 'modify', 'notify', 'allow_ai'];
 
     public function chat()
     {

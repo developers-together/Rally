@@ -52,7 +52,7 @@ class TeamController extends Controller
     {
         $validated = $request->validate([
         'name'=>'string|required|max:255',
-        'projectname'=>'string|required|max:255',
+        'project_name'=>'string|required|max:255',
         'description'=>'string|nullable',
         'contacts'=>'array'
         // 'code' => 'required|string|size:6|unique:teams,code'
@@ -65,7 +65,7 @@ class TeamController extends Controller
 
         $team = Team::create([
         'name'=> $validated['name'],
-        'projectname' =>$validated['projectname'],
+        'project_name' =>$validated['projectname'],
         'description'=>$validated['description'] ?? null,
         // 'code' => $validated['code']
 
@@ -130,7 +130,7 @@ class TeamController extends Controller
         // Validate the request data
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
-            'projectname' => 'sometimes|string|max:255',
+            'project_name' => 'sometimes|string|max:255',
             'description' => 'sometimes|nullable|string',
         ]);
 
@@ -266,9 +266,9 @@ class TeamController extends Controller
         ]);
 
         $team->users()->where('user_id',$validated['id'])->updateExistingPivot('role','owner');
-        $team->users()->where('user_id',$user->id)->delete();
+        $team->users()->where('user_id',$user->id)->detach();
 
-        return redirect('/');
+        return back()->with(['success'=>'owner changed']);
 
     }
 

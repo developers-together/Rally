@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\UserController;
 
 /*
@@ -77,12 +78,12 @@ Route::middleware(['auth'])->group(function () {
     // View another user's profile
     Route::get('/user/{user}/show', [UserController::class, 'show'])->name('user.show');
 
-    // Update user profile
-    Route::put('/user/{user}/update', [UserController::class, 'update'])->name('user.update');
-
     // Get current user's teams
     Route::get('/user/teams', [UserController::class, 'teams'])->name('user.teams');
 
-    // Delete own account
-    Route::delete('/user/delete', [UserController::class, 'delete'])->name('user.delete');
+    // Manage current user's contacts
+    Route::get('contacts', [ContactController::class, 'index'])->name('contacts.index');
+    Route::post('contacts', [ContactController::class, 'store'])->name('contacts.store');
+    Route::put('contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+    Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
 });

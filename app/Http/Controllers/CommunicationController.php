@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Comm;
+use App\Models\Communication;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Team;
 use Inertia\Inertia;
@@ -15,7 +15,7 @@ class CommunicationController extends Controller
      */
     public function index(Team $team)
     {
-        $contacts = Comm::where('team_id',$team->id);
+        $contacts = Communication::where('team_id',$team->id);
 
         Inertia::render('/team/{team/communication',[
             'contacts'=>$contacts
@@ -42,7 +42,7 @@ class CommunicationController extends Controller
         ]);
 
         foreach($validated['contacts'] as $contact){
-            Comm::create([
+            Communication::create([
                 'team_id' => $team->id,
                 'contact' =>$contact
                 ]);
@@ -68,7 +68,7 @@ class CommunicationController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Comm $contact, Team $team)
+    public function update(Request $request, Communication $contact, Team $team)
     {
         Gate::authorize('update',$team);
         $validated = $request->validate(['contact'=> 'string']);
@@ -82,7 +82,7 @@ class CommunicationController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Comm $contact, Team $team)
+    public function destroy(Communication $contact, Team $team)
     {
         Gate::authorize('update',$team);
 

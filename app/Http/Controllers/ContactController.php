@@ -17,9 +17,9 @@ class ContactController extends Controller
     {
         $user = Auth::user();
 
-        $contacts = Contact::where('user_id',$user->id);
+        $contacts = Contact::where('user_id',$user->id)->get();
 
-        return Inertia::render('/users/{user}/contacts',[
+        return Inertia::render('users/contacts',[
             'contacts' => $contacts
         ]);
     }
@@ -39,8 +39,8 @@ class ContactController extends Controller
     {
         $user = Auth::user();
 
-        $validated = $request->valideate([
-            'contacts' => 'array'
+        $validated = $request->validate([
+            'contacts' => 'required|array'
         ]);
 
         foreach($validated['contacts'] as $contact){
@@ -51,7 +51,7 @@ class ContactController extends Controller
 
         }
 
-        return Inertia::render('users/{$user}/profile');
+        return back()->with('success','Contacts added successfully');
 
     }
 
@@ -85,9 +85,15 @@ class ContactController extends Controller
         if($contact->user_id == $user->id){
             $contact->contact = $validated['contact'];
             $contact->save();
+
+            return back()->with('success','Contact updated successfully');
+
         }
 
-        return Inertia::render('users/{$user}/profile');
+        else{
+            abort(403);
+        }
+
     }
 
     /**
@@ -98,8 +104,13 @@ class ContactController extends Controller
         $user = Auth::user();
         if($contact->user_id == $user->id){
             $contact->delete();
+
+            return back()->with('success','Contact deleted successfully');
         }
 
-        return Inertia::render('/users/{$user}/profile');
+        else{
+            abort(403);
+        }
+
     }
 }

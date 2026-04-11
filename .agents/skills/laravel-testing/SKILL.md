@@ -1,6 +1,10 @@
 ---
-description: How to write backend feature tests for a Laravel module
+name: laravel-testing
+description: Use this skill when generating, reviewing, or fixing PHPUnit/Pest tests for Laravel modules including models, factories, policies, and controllers. Do NOT use for frontend or Inertia concerns.
 ---
+# Instructions
+
+# Laravel Unit Test Workflow
 
 You are a senior Laravel backend engineer and test auditor.
 

@@ -14,7 +14,8 @@ class ChatPolicy
      */
     public function viewAny(User $user, Team $team): bool
     {
-        return $user->teams()->wherePivot('team_id',$team->id)->exists();
+        // return $user->teams()->wherePivot('team_id',$team->id)->exists();
+        return false;
     }
 
     /**
@@ -22,8 +23,19 @@ class ChatPolicy
      */
     public function view(User $user, Chat $chat): bool
     {
+        if($chat->perm->visibility == 'viewer'){
         return $chat->team->users()->where('user_id', $user->id)->exists();
+        }
 
+        if($chat->team->user->where('user_id',$user->id)->role == 'admin' ||
+           $chat->team->user->where('user_id',$user->id)->role == 'owner')
+        return true;
+
+        if($chat->perm->visibility == 'member'){
+
+        return $chat->team->users()->where('user_id', $user->id)->where('role','member')->exists();
+        }
+        return false;
     }
 
     /**
@@ -39,9 +51,19 @@ class ChatPolicy
      */
     public function update(User $user, Chat $chat): bool
     {
-        return $chat->team->users()
-            ->where('user_id', $user->id)
-            ->exists();
+        if($chat->perm->modify == 'viewer'){
+        return $chat->team->users()->where('user_id', $user->id)->exists();
+        }
+
+        if($chat->team->user->where('user_id',$user->id)->role == 'admin' ||
+           $chat->team->user->where('user_id',$user->id)->role == 'owner')
+        return true;
+
+        if($chat->perm->modify == 'member'){
+
+        return $chat->team->users()->where('user_id', $user->id)->where('role','member')->exists();
+        }
+        return false;
     }
 
     /**
@@ -49,9 +71,19 @@ class ChatPolicy
      */
     public function delete(User $user, Chat $chat): bool
     {
-        return $chat->team->users()
-            ->where('user_id', $user->id)
-            ->exists();
+        if($chat->perm->delete == 'viewer'){
+        return $chat->team->users()->where('user_id', $user->id)->exists();
+        }
+
+        if($chat->team->user->where('user_id',$user->id)->role == 'admin' ||
+           $chat->team->user->where('user_id',$user->id)->role == 'owner')
+        return true;
+
+        if($chat->perm->delete == 'member'){
+
+        return $chat->team->users()->where('user_id', $user->id)->where('role','member')->exists();
+        }
+        return false;
     }
 
     /**

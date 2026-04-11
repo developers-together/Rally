@@ -21,14 +21,7 @@ class CreateNewUser implements CreatesNewUsers
     {
         Validator::make($input, [
             ...$this->profileRules(),
-            'name' => 'required|max:255',
             'password' => $this->passwordRules(),
-            'gender' => 'nullable|string',
-            'job' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'timezone' => 'nullable|string|max:50',
-            'profile' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
-
         ])->validate();
 
         $profilePath = null;

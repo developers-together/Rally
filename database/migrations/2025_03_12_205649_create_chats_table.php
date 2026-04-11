@@ -24,10 +24,10 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->foreignId('chat_id')->constrained()->cascadeOnDelete();
-            $table->boolean('write');
-            $table->boolean('read');
-            $table->boolean('delete');
-            $table->boolean('modify');
+            $table->enum('visibility',['admin','member','viewer'])->default('viewer');
+            $table->enum('write',['admin','member','viewer'])->default('viewer');
+            $table->enum('delete',['admin','member','viewer'])->default('viewer');
+            $table->enum('modify',['admin','member','viewer'])->default('viewer');
             $table->boolean('notify');
             $table->boolean('allow_ai');
 

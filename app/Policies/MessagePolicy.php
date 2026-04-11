@@ -69,6 +69,6 @@ class MessagePolicy
 
         $perm = $chat->ChatPerm->first();
 
-        return $pivot && $perm && $perm->read == true;
+        return $pivot && $perm && $perm->visiability == true;
     }
 }
