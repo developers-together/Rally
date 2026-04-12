@@ -2,9 +2,7 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -25,16 +23,36 @@ class EditMessage implements ShouldBroadcast, ShouldDispatchAfterCommit
         //
     }
 
+    public function broadcastWith(): array
+    {
+        $this->message->loadMissing('user:id,name');
+
+        $data = $this->message->toArray();
+        $data['user_name'] = $this->message->user?->name;
+        $data['replyTo'] = $this->message->reply_to;
+
+        if ($this->message->path) {
+            $data['path'] = Storage::url($this->message->path);
+            $data['image_url'] = $data['path'];
+        }
+
+        return $data;
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'message.edit';
+    }
+
     /**
      * Get the channels the event should broadcast on.
      *
-     * @return array<int, Channel>
+     * @return array<int, PrivateChannel>
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('team.'. $this->message->chat->team->id .
-            '.chat.' . $this->message->chat->id . '.edit'),
+            new PrivateChannel('chat.' . $this->message->chat->id),
         ];
     }
 }

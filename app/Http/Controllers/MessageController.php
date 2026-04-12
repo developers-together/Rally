@@ -8,9 +8,7 @@ use App\Models\Chat;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Http;
 use App\Events\NewMessage;
 use App\Events\EditMessage;
 use App\Notifications\NewChatMessage;
@@ -39,18 +37,23 @@ class MessageController extends Controller
             $path = $request->file('image')->store('images', 'public');
         }
 
-        if($validated['message']|| $path){
+        $text = isset($validated['message']) ? trim((string) $validated['message']) : null;
+        $text = $text === '' ? null : $text;
+
+        if (!$text && !$path) {
+            return response()->json([
+                'message' => 'Message text or image required.',
+            ], 422);
+        }
+
         // Create the message
         $message = Message::create([
             'chat_id' => $chat->id,
             'user_id' => $user->id,
-            'message' => $validated['message'] ?? null,
+            'message' => $text,
             'path' => $path,
             'reply_to' => $validated['replyTo'] ?? null,
-            ]);
-        }
-
-
+        ]);
 
         NewMessage::dispatch($message);
 
@@ -66,7 +69,15 @@ class MessageController extends Controller
 
             }
         }
-        return response($validated);
+        $message->loadMissing('user:id,name');
+        $response = $message->toArray();
+        $response['user_name'] = $message->user?->name;
+        $response['replyTo'] = $message->reply_to;
+        $response['image_url'] = $message->path ? Storage::url($message->path) : null;
+
+        return response()->json([
+            'message' => $response,
+        ], 201);
 
         // Build a custom response array
         // $response = [
@@ -135,7 +146,7 @@ class MessageController extends Controller
             ]);
 
 
-        // NewMessage::dispatch($message);
+        EditMessage::dispatch($message);
 
         return response($validated);
     }

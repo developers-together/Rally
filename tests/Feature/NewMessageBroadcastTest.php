@@ -29,7 +29,7 @@ it('broadcasts on the correct private channel', function () {
 
     expect($channels)->toHaveCount(1)
         ->and($channels[0])->toBeInstanceOf(PrivateChannel::class)
-        ->and($channels[0]->name)->toBe('private-team.' . $team->id . '.chat.' . $chat->id . '.get');
+        ->and($channels[0]->name)->toBe('private-chat.' . $chat->id);
 });
 
 /*
@@ -201,4 +201,3 @@ it('rejects a member when ChatPerm read is false', function () {
 
     expect($authorized)->toBeFalse();
 });
-
