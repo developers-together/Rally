@@ -10,45 +10,58 @@ use Illuminate\Auth\Access\Response;
 
 class TaskPolicy
 {
-    /**
-     * Determine whether the user can view any models.
-     */
-    public function viewAny(User $user, Team $team): bool
+ 
+    public function viewAny(User $user, TaskList $list): bool
     {
-        return $user->teams()->wherePivot('team_id',$team->id)->exists();
+        if (! $list->team) {
+            return false;
+        }
+        return $user->teams()->wherePivot('team_id', $list->team->id)->exists();
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, TaskList $list): bool
+    public function view(User $user, Task $task): bool
     {
-        return $list->team->users()->where('user_id', $user->id)->exists();
-
+        return $this->isMember($user, $task);
     }
 
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user, Team $team): bool
+    public function create(User $user, TaskList $list): bool
     {
-        return $team->users()->wherePivot('user_id',$user->id)->exists();
+        if (! $list->team) {
+            return false;
+        }
+        return $list->team->users()->wherePivot('user_id', $user->id)->exists();
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, TaskList $list): bool
+    public function update(User $user, Task $task): bool
     {
-        return $list->team->users()->where('user_id', $user->id)->exists();
+        return $this->isMember($user, $task);
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, TaskList $list): bool
+    public function delete(User $user, Task $task): bool
     {
-        return $list->team->users()->where('user_id', $user->id)->exists();
+        return $this->isMember($user, $task);
+    }
+
+    /** Returns false instead of throwing if FK chain is broken (orphaned task/list). */
+    private function isMember(User $user, Task $task): bool
+    {
+        $team = $task->taskList?->team;
+        if (! $team) {
+            return false;
+        }
+        return $team->users()->wherePivot('user_id', $user->id)->exists();
     }
 
     /**

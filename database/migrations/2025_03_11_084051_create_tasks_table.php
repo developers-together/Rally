@@ -20,7 +20,6 @@ return new class extends Migration
             // $table->dateTime('start')->nullable();
             $table->boolean('completed')->default(false);
             // Kept as IDs to avoid migration-order FK failures in fresh test DB setup.
-            $table->foreignId('team_id');
             // $table->string("categroy")->nullable();
             $table->enum('priority', ['high','medium','low'])->default('medium');
             $table->foreignId('task_list_id');

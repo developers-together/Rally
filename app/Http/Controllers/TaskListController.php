@@ -2,25 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use App\Models\TaskList;
 use App\Models\Team;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class TaskListController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      */
     public function index(Team $team)
     {
-        Gate::authorize('viewAny',Auth::user(),$team);
+        Gate::authorize('viewAny', [TaskList::class, $team]);
         $lists = $team->taskLists()->get();
 
         return Inertia::render('/tasks',['lists'=>$lists]);
@@ -40,7 +36,7 @@ class TaskListController extends Controller
      */
     public function store(Team $team, Request $request)
     {
-        Gate::authorize('create', Auth::user(),$team);
+        Gate::authorize('create', [TaskList::class, $team]);
 
         $validated = $request->validate([ 'title' => 'required|string|max:50']);
 
@@ -54,7 +50,7 @@ class TaskListController extends Controller
      */
     public function show(TaskList $list)
     {
-        Gate::authorize('view',Auth::user(),$list);
+        Gate::authorize('view',$list);
 
         return Inertia::render('tasklists/tasklist',['data' => $list]);
     }
@@ -72,7 +68,7 @@ class TaskListController extends Controller
      */
     public function update(Request $request, TaskList $list)
     {
-        Gate::authorize('update', Auth::user(),$list);
+        Gate::authorize('update',$list);
 
         $validated = $request->validate(['title' => 'required|string|max:50']);
 
@@ -87,7 +83,7 @@ class TaskListController extends Controller
     public function destroy(TaskList $list)
     {
 
-        Gate::authorize('delete',Auth::user(),$list);
+        Gate::authorize('delete',$list);
         $list->delete();
 
         return back()->with(['success'=> 'list deleted successfully']);

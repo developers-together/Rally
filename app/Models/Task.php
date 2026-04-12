@@ -12,13 +12,13 @@ class Task extends Model
     use HasFactory;
 
     protected $fillable = ['title', 'description', 'deadline',
-    'completed', 'team_id', 'priority', 'task_list_id'];
+    'completed', 'priority', 'task_list_id'];
 
 
 
-    // protected $casts = [
-    //     'completed' => 'boolean',
-    // ];
+    protected $casts = [
+        'completed' => 'boolean',
+    ];
 
 
     public function taskList(): BelongsTo
@@ -28,7 +28,7 @@ class Task extends Model
 
     public function event(): HasMany
     {
-        return $this->HasMany(Event::class);
+        return $this->hasMany(Event::class);
     }
 
 }
