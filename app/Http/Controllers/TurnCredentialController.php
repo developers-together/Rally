@@ -18,20 +18,18 @@ class TurnCredentialController extends Controller
             'room_id' => ['nullable', 'string', 'max:255'],
         ]);
 
-        
-
         try {
             $credentials = $this->turn->generateCredentials(
                 userId: (int) $request->user()->id,
                 roomId: $request->input('room_id'),
             );
         } catch (RuntimeException $e) {
-            return response()->json([
+            return $this->noStore(response()->json([
                 'message' => $e->getMessage(),
-            ], 503);
+            ], 503));
         }
 
-        return response()->json($credentials);
+        return $this->noStore(response()->json($credentials));
     }
 
     // Explicitly terminate the caller's TURN sessions
@@ -55,5 +53,10 @@ class TurnCredentialController extends Controller
         $this->turn->terminateUserSessions($userId);
 
         return response()->json(['message' => 'Sessions terminated.']);
+    }
+
+    private function noStore(JsonResponse $response): JsonResponse
+    {
+        return $response->header('Cache-Control', 'no-store');
     }
 }

@@ -33,6 +33,7 @@ return [
         'host'           => env('TURN_HOST', 'localhost'),
         'port'           => env('TURN_PORT', 3478),
         'tls_port'       => env('TURN_TLS_PORT', 5349),
+        'tls_enabled'    => env('TURN_TLS_ENABLED', false),
         'ttl'            => env('TURN_TTL', 3600),
         'admin_url'      => env('COTURN_ADMIN_URL', 'http://127.0.0.1:8080'),
         'admin_host'     => env('COTURN_ADMIN_HOST', '127.0.0.1'),

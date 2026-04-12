@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TurnSession;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class TurnService
@@ -18,6 +19,7 @@ class TurnService
         $host = (string) config('services.coturn.host', '127.0.0.1');
         $port = (int) config('services.coturn.port', 3478);
         $tlsPort = (int) config('services.coturn.tls_port', 5349);
+        $tlsEnabled = (bool) config('services.coturn.tls_enabled', false);
 
         if ($secret === '') {
             throw new RuntimeException('TURN secret is not configured.');
@@ -25,7 +27,8 @@ class TurnService
 
         $timestamp = now()->timestamp + $ttl;
         $identifier = $userId ?? 'guest';
-        $username = "{$timestamp}:{$identifier}";
+        $nonce = Str::lower((string) Str::uuid());
+        $username = "{$timestamp}:{$identifier}:{$nonce}";
 
         $credential = base64_encode(hash_hmac('sha1', $username, $secret, true));
 
@@ -39,23 +42,26 @@ class TurnService
         }
 
         $iceServers = [
-                [
-                    'urls' => ["stun:{$host}:{$port}"],
+            [
+                'urls' => ["stun:{$host}:{$port}"],
+            ],
+            [
+                'urls' => [
+                    "turn:{$host}:{$port}?transport=udp",
+                    "turn:{$host}:{$port}?transport=tcp",
                 ],
-                [
-                    'urls' => [
-                        "turn:{$host}:{$port}?transport=udp",
-                        "turn:{$host}:{$port}?transport=tcp",
-                    ],
-                    'username' => $username,
-                    'credential' => $credential,
-                ],
-                [
-                    'urls' => ["turns:{$host}:{$tlsPort}?transport=tcp"],
-                    'username' => $username,
-                    'credential' => $credential,
-                ],
+                'username' => $username,
+                'credential' => $credential,
+            ],
+        ];
+
+        if ($tlsEnabled) {
+            $iceServers[] = [
+                'urls' => ["turns:{$host}:{$tlsPort}?transport=tcp"],
+                'username' => $username,
+                'credential' => $credential,
             ];
+        }
 
         return [
             'ice_servers' => $iceServers,

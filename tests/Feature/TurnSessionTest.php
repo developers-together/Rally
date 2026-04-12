@@ -5,6 +5,7 @@ use App\Models\TurnSession;
 use App\Models\User;
 use App\Services\CoturnAdminService;
 use App\Services\TurnService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -150,6 +151,7 @@ it('issues turn credentials and stores a turn session', function () {
         'services.coturn.host' => '127.0.0.1',
         'services.coturn.port' => 3478,
         'services.coturn.tls_port' => 5349,
+        'services.coturn.tls_enabled' => true,
         'services.coturn.ttl' => 3600,
     ]);
 
@@ -166,11 +168,32 @@ it('issues turn credentials and stores a turn session', function () {
 
     expect($response->getStatusCode())->toBe(200)
         ->and($payload)->toHaveKeys(['ice_servers', 'iceServers', 'ttl', 'username']);
+    expect($response->headers->get('Cache-Control'))->toContain('no-store');
+    expect($payload['username'])->toMatch('/^\d+:\d+:[a-f0-9\-]{36}$/');
 
     expect(TurnSession::where('user_id', $user->id)
         ->where('username', $payload['username'])
         ->where('room_id', 'voice-room-42')
         ->exists())->toBeTrue();
+});
+
+it('mints unique usernames even when issued quickly for the same user', function () {
+    config([
+        'services.coturn.secret' => 'testing-secret',
+        'services.coturn.ttl' => 3600,
+    ]);
+
+    $coturn = \Mockery::mock(CoturnAdminService::class);
+    $service = new TurnService($coturn);
+    $controller = new TurnCredentialController($service);
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    $first = $controller->issue(turnRequest($user, ['room_id' => 'voice-room-42']))->getData(true);
+    $second = $controller->issue(turnRequest($user, ['room_id' => 'voice-room-42']))->getData(true);
+
+    expect($first['username'])->not->toBe($second['username']);
 });
 
 it('returns 503 when turn secret is missing while issuing credentials', function () {
@@ -192,6 +215,80 @@ it('returns 503 when turn secret is missing while issuing credentials', function
 
     expect($response->getStatusCode())->toBe(503)
         ->and($payload['message'])->toContain('TURN secret is not configured');
+    expect($response->headers->get('Cache-Control'))->toContain('no-store');
+});
+
+it('returns turn credentials without turns when tls is disabled', function () {
+    config([
+        'services.coturn.secret' => 'testing-secret',
+        'services.coturn.host' => '127.0.0.1',
+        'services.coturn.port' => 3478,
+        'services.coturn.tls_port' => 5349,
+        'services.coturn.tls_enabled' => false,
+        'services.coturn.ttl' => 3600,
+    ]);
+
+    $service = new TurnService(\Mockery::mock(CoturnAdminService::class));
+    $payload = $service->generateCredentials(userId: 123, roomId: 'voice-room');
+
+    $urls = [];
+    foreach ($payload['ice_servers'] as $server) {
+        foreach ((array) ($server['urls'] ?? []) as $url) {
+            $urls[] = $url;
+        }
+    }
+
+    expect(collect($urls)->contains(fn (string $url) => str_starts_with($url, 'turns:')))->toBeFalse();
+});
+
+it('returns turns credentials when tls is enabled', function () {
+    config([
+        'services.coturn.secret' => 'testing-secret',
+        'services.coturn.host' => '127.0.0.1',
+        'services.coturn.port' => 3478,
+        'services.coturn.tls_port' => 5349,
+        'services.coturn.tls_enabled' => true,
+        'services.coturn.ttl' => 3600,
+    ]);
+
+    $service = new TurnService(\Mockery::mock(CoturnAdminService::class));
+    $payload = $service->generateCredentials(userId: 123, roomId: 'voice-room');
+
+    $urls = [];
+    foreach ($payload['ice_servers'] as $server) {
+        foreach ((array) ($server['urls'] ?? []) as $url) {
+            $urls[] = $url;
+        }
+    }
+
+    expect(collect($urls)->contains(fn (string $url) => str_starts_with($url, 'turns:')))->toBeTrue();
+});
+
+it('enforces unique usernames at the database level', function () {
+    $user = User::factory()->create();
+    $username = (string) now()->addHour()->timestamp . ':' . $user->id . ':fixed-nonce';
+
+    TurnSession::create([
+        'user_id' => $user->id,
+        'username' => $username,
+        'room_id' => 'voice-room-1',
+        'expires_at' => now()->addHour(),
+    ]);
+
+    expect(function () use ($user, $username): void {
+        TurnSession::create([
+            'user_id' => $user->id,
+            'username' => $username,
+            'room_id' => 'voice-room-2',
+            'expires_at' => now()->addHour(),
+        ]);
+    })->toThrow(QueryException::class);
+});
+
+it('registers turn credentials endpoint as post only', function () {
+    $response = $this->getJson('/api/turn/credentials');
+
+    expect($response->getStatusCode())->toBe(405);
 });
 
 it('terminates a specific session for the authenticated user', function () {

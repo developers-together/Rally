@@ -31,7 +31,7 @@ class CoturnAdminService
 
         return array_values(array_filter(
             $this->getSessionsByPartialUsername($needle),
-            fn (array $session): bool => str_ends_with((string) ($session['username'] ?? ''), $needle)
+            fn (array $session): bool => $this->sessionBelongsToUser((string) ($session['username'] ?? ''), $userId)
         ));
     }
 
@@ -43,7 +43,23 @@ class CoturnAdminService
             return false;
         }
 
-        return $this->runCommand("cs {$sessionId}") !== null;
+        $output = $this->runCommand("cs {$sessionId}");
+
+        if ($output === null) {
+            return false;
+        }
+
+        if ($this->isCliErrorOutput($output)) {
+            Log::warning('Coturn CLI terminate command failed.', ['session_id' => $sessionId]);
+            return false;
+        }
+
+        $exists = $this->sessionExists($sessionId);
+        if ($exists !== null) {
+            return ! $exists;
+        }
+
+        return $this->isCliSuccessOutput($output);
     }
 
     public function terminateUserSessions(int $userId): void
@@ -200,5 +216,37 @@ class CoturnAdminService
     private function sanitizeCliToken(string $value): string
     {
         return preg_replace('/[^a-zA-Z0-9:_@.\-]/', '', $value) ?? '';
+    }
+
+    private function sessionBelongsToUser(string $username, int $userId): bool
+    {
+        $parts = explode(':', $username);
+        return isset($parts[1]) && $parts[1] === (string) $userId;
+    }
+
+    private function sessionExists(string $sessionId): ?bool
+    {
+        $output = $this->runCommand('ps');
+        if ($output === null) {
+            return null;
+        }
+
+        foreach ($this->parseSessions($output) as $session) {
+            if ((string) ($session['id'] ?? '') === $sessionId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isCliErrorOutput(string $output): bool
+    {
+        return (bool) preg_match('/\b(error|invalid|denied|unknown|not found|failed|failure)\b/i', $output);
+    }
+
+    private function isCliSuccessOutput(string $output): bool
+    {
+        return (bool) preg_match('/\b(success|closed|deleted|removed|ok)\b/i', $output);
     }
 }
