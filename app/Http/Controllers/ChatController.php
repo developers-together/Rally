@@ -2,169 +2,125 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Chat;
-use App\Models\User;
 use App\Models\ChatPerm;
 use App\Models\Team;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class ChatController extends Controller
 {
-    use AuthorizesRequests;
-
-    // Display all chats
     public function index(Team $team)
     {
-        $user = Auth::user();
+        Gate::authorize('viewAny', [Chat::class, $team]);
 
-        // Gate::authorize('viewAny', $user, $team);
+        $role = $team->users()
+            ->wherePivot('user_id', Auth::id())
+            ->first()?->pivot?->role;
 
-        if($team->users()->wherePivot('user_id',$user->id)->wherePivotIn('role',['admin','owner']))
-        {
-            $chats = Chat::where('team_id', $team->id)->with(['messages'=> function($query){
-                $query->orderBy('created_at', 'desc')->limit(30);
-                if($query->path->exists())
-                    $query->path = file($query->path);
-                if($query->reply_to->exists)
-                    $query->reply_to = User::where('id', $query->reply_to);
+        $messagesQuery = fn ($query) => $query
+            ->orderBy('created_at', 'desc')
+            ->limit(30)
+            ->with('user:id,name');
 
-            }])->get();
+        if (in_array($role, ['admin', 'owner'], true)) {
+            $chats = Chat::where('team_id', $team->id)
+                ->with(['messages' => $messagesQuery])
+                ->get();
 
-            return Inertia::render('chat',['data' =>$chats]);
+            return Inertia::render('chat', ['data' => $chats]);
         }
 
+        if ($role === 'member') {
+            $chats = Chat::where('team_id', $team->id)
+                ->where(function ($query) {
+                    $query->whereRelation('perm', 'visibility', 'viewer')
+                        ->orWhereRelation('perm', 'visibility', 'member');
+                })
+                ->with(['messages' => $messagesQuery])
+                ->get();
 
-
-        if($team->users()->wherePivot('user_id',$user->id)->wherePivot('role','member'))
-        {
-
-        $chats = Chat::where('team_id', $team->id)->whereRelation('perm','visibility', 'viewer')
-                ->orWhereRelation('perm','visibility','member')
-                ->with(['messages'=> function($query){
-                    $query->orderBy('created_at','desc')->limit(30);
-                    if($query->path->exists())
-                        $query->path = file($query->path);
-                    if($query->reply_to->exists)
-                        $query->reply_to = User::where('id', $query->reply_to);
-                }])->get();
-
-            return Inertia::render('chat',['data'=>$chats]);
+            return Inertia::render('chat', ['data' => $chats]);
         }
 
-        if($team->users()->wherePivot('user_id',$user->id)->wherePivot('role','viewer'))
-        {
-                $chats = Chat::where('team_id', $team->id)->whereRelation('perm','visibility', 'viewer')
-                ->with(['messages'=> function($query){
-                    $query->orderBy('created_at','desc')->limit(30);
-                    if($query->path->exists())
-                        $query->path = file($query->path);
-                    if($query->reply_to->exists)
-                        $query->reply_to = User::where('id', $query->reply_to);
-                }])->get();
+        if ($role === 'viewer') {
+            $chats = Chat::where('team_id', $team->id)
+                ->whereRelation('perm', 'visibility', 'viewer')
+                ->with(['messages' => $messagesQuery])
+                ->get();
 
-            return Inertia::render('chat',['data'=>$chats]);
-
+            return Inertia::render('chat', ['data' => $chats]);
         }
 
-        return back()->with(['error' => 'connot retrieve chats']);
+        return back()->with(['error' => 'cannot retrieve chats']);
     }
-
 
     public function store(Request $request, Team $team)
     {
-        $user = Auth::user();
+        Gate::authorize('create', [Chat::class, $team]);
 
-        Gate::authorize('create', $user, $team);
-
-       $validated = $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:text,voice'
+            'type' => 'required|in:text,voice',
         ]);
 
-            $chat = Chat::create([
-                'name'=> $validated['name'],
-                'type'=> $validated['type'],
-                'team_id' => $team->id
-                ]);
-
-        if($validated['type'] == 'text'){
-
-             ChatPerm::create([
-
-            'visibility'=> 'viewer',
-            'modify' => 'viewer',
-            'notify' => true,
-            'delete' => 'viewer',
-            'allow_ai' => false,
-            'chat_id' => $chat->id
+        $chat = Chat::create([
+            'name' => $validated['name'],
+            'type' => $validated['type'],
+            'team_id' => $team->id,
         ]);
 
+        if ($validated['type'] === 'text') {
+            ChatPerm::create([
+                'visibility' => 'viewer',
+                'modify' => 'viewer',
+                'notify' => true,
+                'delete' => 'viewer',
+                'allow_ai' => false,
+                'chat_id' => $chat->id,
+            ]);
         }
 
-        return $chat->toJson();
+        return response()->json($chat, 201);
     }
 
     public function show(Chat $chat)
     {
-        // Authorize the action
-        Gate::authorize('view',Auth::user(), $chat);
+        Gate::authorize('view', $chat);
 
-        $chat= $chat->with(['messages'=> function($query){
-            $query->orderby('created_at')->pagenate(50);
-            if($query->path->exists())
-            $query->path = file($query->path);
-            if($query->reply_to->exists)
-                $query->reply_to = User::where('id', $query->reply_to);
+        $chat->load(['messages' => function ($query) {
+            $query->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->with('user:id,name');
         }]);
-        // Return the chat details as a JSON response
-        return $chat->toJson();
+
+        return response()->json($chat);
     }
 
-    public function update(Request $request , Chat $chat)
+    public function update(Request $request, Chat $chat)
     {
-        $user = Auth::user();
-        Gate::authorize('update',$user, $chat);
+        Gate::authorize('update', $chat);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:text,voice'
-
+            'type' => 'required|in:text,voice',
         ]);
-
-
-        if($chat->team->users()->where('user_id', $user->id)){
 
         $chat->update([
-            'name'=> $validated['name'],
+            'name' => $validated['name'],
         ]);
+
+        return response()->json($chat);
     }
 
-        return $chat->toJson();
-    }
-
-    public function destroy(Chat $chat, Request $request)
+    public function destroy(Chat $chat)
     {
-        $user = Auth::user();
-        Gate::authorize('delete',$user, $chat);
-
-        $validated = $request->validate([
-            'chat_id' => 'required|exists:chats,id',
-        ]);
-
-        $chat = Chat::find($validated['chat_id']);
-
-        if (!$chat) {
-            return response()->json(['success' => false, 'message' => 'Chat not found'], 404);
-        }
+        Gate::authorize('delete', $chat);
 
         $chat->delete();
 
         return response()->json(['success' => true]);
     }
-
-
 }

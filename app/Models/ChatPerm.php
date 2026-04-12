@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChatPerm extends Model
 {
@@ -12,19 +13,14 @@ class ChatPerm extends Model
     protected $table = 'chat_permissions';
 
     protected $casts = [
-    'visibility'    => 'boolean',
-    'read'     => 'boolean',
-    'delete'   => 'boolean',
-    'modify'   => 'boolean',
-    'notify'   => 'boolean',
-    'allow_ai' => 'boolean',
+        'notify' => 'boolean',
+        'allow_ai' => 'boolean',
     ];
 
     protected $fillable = ['chat_id', 'visibility', 'write', 'delete', 'modify', 'notify', 'allow_ai'];
 
-    public function chat()
+    public function chat(): BelongsTo
     {
         return $this->belongsTo(Chat::class);
     }
 }
-

@@ -23,7 +23,7 @@ class MessageController extends Controller
     {
         $user = Auth::user(); // Get the user object
         // Authorize the action
-        Gate::authorize('sendMessage',$user, $chat);
+        Gate::authorize('sendMessage', [Message::class, $chat]);
 
         // Validate the request
         $validated = $request->validate([
@@ -54,7 +54,7 @@ class MessageController extends Controller
 
         NewMessage::dispatch($message);
 
-        $perm = $chat->ChatPerm->first();
+        $perm = $chat->perm;
 
         if($perm && $perm->notify){
 
@@ -89,7 +89,7 @@ class MessageController extends Controller
     public function getMessages(Chat $chat)
     {
         $user = Auth::user();
-        Gate::authorize('getMessages',$user, $chat);
+        Gate::authorize('getMessages', [Message::class, $chat]);
 
         $messages = Message::with('user:id,name')->where('chat_id', $chat->id)->latest()->paginate(50);
 
@@ -121,7 +121,7 @@ class MessageController extends Controller
         $user = Auth::user();
         $chat = $message->chat;
 
-        Gate::authorize('update',$user,$chat);
+        Gate::authorize('update', [Message::class, $chat]);
 
         $validated = $request->validate([
             'message' => 'required|string',
@@ -144,7 +144,7 @@ class MessageController extends Controller
     {
         $user = Auth::user();
 
-        Gate::authorize('delete', $user, $message->chat); // Assuming your policy handles user ownership
+        Gate::authorize('delete', [Message::class, $message->chat]); // Assuming your policy handles user ownership
 
 
 

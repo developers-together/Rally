@@ -15,13 +15,13 @@ class Message extends Model
 
     public function user(): BelongsTo
     {
-        return $this->BelongsTo(User::class);
+        return $this->belongsTo(User::class);
     }
 
 
     public function chat(): BelongsTo
     {
-        return $this->BelongsTo(Chat::class);
+        return $this->belongsTo(Chat::class);
     }
 
 }

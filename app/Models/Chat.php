@@ -19,10 +19,9 @@ class Chat extends Model
         return $this->belongsTo(Team::class);
     }
 
-    public function Messages(): hasMany
+    public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
-
     }
 
     public function perm(): HasOne
@@ -30,12 +29,7 @@ class Chat extends Model
         return $this->hasOne(ChatPerm::class);
     }
 
-    public function user(): HasMany
-    {
-        return $this->hasMany(User::class)->withpivot('notifications');
 
-
-    }
 
     // protected static function boot()
     // {

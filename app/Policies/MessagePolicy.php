@@ -1,8 +1,6 @@
 <?php
 namespace App\Policies;
 
-use App\Models\Message;
-use App\Models\ChatPerm;
 use App\Models\Chat;
 use App\Models\User;
 
@@ -10,65 +8,68 @@ class MessagePolicy
 {
     public function delete(User $user, Chat $chat): bool
     {
-        $pivot = $chat->team->users()->wherePivot('user_id',$user->id)->first()?->pivot;
-
-        if($pivot && in_array($pivot->role,['admin','owner'])){
-            return true;
-        }
-
-        $perm = $chat->ChatPerm->first();
-
-        return $pivot && $perm && $perm->delete == true;
+        return $this->canUsePermission($user, $chat, 'delete');
     }
 
-    public function sendMessage(User $user, Chat $chat){
-
-        $pivot = $chat->team->users()->wherePivot('user_id',$user->id)->first()?->pivot;
-
-        if($pivot && in_array($pivot->role,['admin','owner'])){
-            return true;
-        }
-
-        $perm = $chat->ChatPerm->first();
-
-        return $pivot && $perm && $perm->write == true;
-
+    public function sendMessage(User $user, Chat $chat): bool
+    {
+        return $this->canUsePermission($user, $chat, 'write');
     }
 
-    public function update(User $user, Chat $chat){
-
-        $pivot = $chat->team->users()->wherePivot('user_id',$user->id)->first()?->pivot;
-
-        if($pivot && in_array($pivot->role,['admin','owner'])){
-            return true;
-        }
-
-        $perm = $chat->ChatPerm->first();
-
-        return $pivot && $perm && $perm->modify == true;
-
+    public function update(User $user, Chat $chat): bool
+    {
+        return $this->canUsePermission($user, $chat, 'modify');
     }
 
-    public function notify(User $user, Chat $chat){
+    public function notify(User $user, Chat $chat): bool
+    {
+        $role = $this->getTeamRole($user, $chat);
+        if ($role === null) {
+            return false;
+        }
 
-
-
-        $perm = $chat->ChatPerm->first();
-
-        return $perm && $perm->notify == true;
+        return (bool) $chat->perm?->notify;
     }
 
 
-    public function getMessages(User $user, Chat $chat){
+    public function getMessages(User $user, Chat $chat): bool
+    {
+        return $this->canUsePermission($user, $chat, 'visibility');
+    }
 
-        $pivot = $chat->team->users()->wherePivot('user_id',$user->id)->first()?->pivot;
+    private function canUsePermission(User $user, Chat $chat, string $field): bool
+    {
+        $role = $this->getTeamRole($user, $chat);
+        if ($role === null) {
+            return false;
+        }
 
-        if($pivot && in_array($pivot->role,['admin','owner'])){
+        if ($this->isAdminOrOwner($role)) {
             return true;
         }
 
-        $perm = $chat->ChatPerm->first();
+        $requiredRole = $chat->perm?->{$field};
+        if ($requiredRole === null) {
+            return false;
+        }
 
-        return $pivot && $perm && $perm->visiability == true;
+        return match ($requiredRole) {
+            'viewer' => true,
+            'member' => $role === 'member',
+            'admin' => false,
+            default => false,
+        };
+    }
+
+    private function getTeamRole(User $user, Chat $chat): ?string
+    {
+        return $chat->team->users()
+            ->wherePivot('user_id', $user->id)
+            ->first()?->pivot?->role;
+    }
+
+    private function isAdminOrOwner(?string $role): bool
+    {
+        return in_array($role, ['admin', 'owner'], true);
     }
 }
